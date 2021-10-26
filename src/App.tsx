@@ -9,6 +9,8 @@ import {
   Pagination,
   Spin,
   Grid,
+  Select,
+  Input,
 } from "antd";
 import {
   AppstoreOutlined,
@@ -23,7 +25,9 @@ import {
 } from "@ant-design/icons";
 import { CSSTransition, TransitionGroup } from "react-transition-group";
 import "./App.css";
-import { useState } from "react";
+import { ChangeEvent, useState } from "react";
+import { IProduct } from "./models/Product";
+import { useFiltredArray } from "./hooks/filtredArray";
 
 const { Header, Content, Sider } = Layout;
 const { Meta } = Card;
@@ -33,11 +37,15 @@ const App = () => {
   const [pagination, setPagination] = useState({ limit: 8, page: 1 });
   const screens = useBreakpoint();
   const {
-    data: products,
+    data,
     isLoading,
     error,
-    isFetching,
-  } = productAPI.useFetchAllProductsQuery(pagination);
+    status
+  } = productAPI.useFetchAllProductsQuery('');
+
+  const filtredArray = useFiltredArray(data,{limit: 10, page: 1})
+
+  const products = filtredArray?.filtredArray
 
   const handlePagination = (newPage: number) => {
     setPagination({ ...pagination, page: newPage });
@@ -92,42 +100,63 @@ const App = () => {
             style={{
               padding: 5,
               display: "flex",
-              justifyContent: "flex-end",
+              justifyContent: "space-between",
+              alignItems: "center"
             }}
           >
-            <Menu mode="horizontal">
-              <Menu.Item key="1">
-                <Badge count={99}>
-                  <ShoppingCartOutlined
-                    style={{ fontSize: "30px", color: "#08c" }}
-                  />
-                </Badge>
-              </Menu.Item>
-            </Menu>
+            {/* <Select
+              mode="multiple"
+              placeholder="Inserted are removed"
+              // value={selectedItems}
+              // onChange={searchShoeses()}
+              style={{ width: screens.xl ? "90%" : "70%", marginLeft: 16 }}
+            >
+              {
+                [...new Set<IProduct[]>(products)].map(item=>(
+                  <Select.Option key={item.}>
+
+                  </Select.Option>
+                ))
+              }
+              {/* {filteredOptions.map(item => (
+                <Select.Option key={item} value={item}>
+                  {item}
+                </Select.Option>
+              ))}
+            </Select> */}
+            <Input style={{ width: screens.xl ? "90%" : "70%", marginLeft: 16 }}/>
+            <div style={{marginRight: 16, display: "flex", alignItems: "center"}}>
+              <Badge count={99}>
+                <ShoppingCartOutlined
+                  style={{ fontSize: "30px", color: "#08c" }}
+                />
+              </Badge>
+            </div>
           </Header>
           <Content style={{ margin: "24px 16px 0", overflow: "initial" }}>
             <div
               className="site-layout-background"
               style={{ padding: 24, textAlign: "center" }}
             >
-              {isLoading && isFetching && <Spin />}
+              {isLoading && <Spin />}
               {error && <h1>Ошибка при загрузке товаров</h1>}
               <Row gutter={[16, 16]}>
-                  {products &&
-                    products.map((product) => (
-                      <Col xs={24} sm={24} md={12} xl={6} xxl={6}>
-                          <Card
-                            key={product.id}
-                            hoverable
-                            cover={<img alt="example" src={product.imageUrl} />}
-                          >
-                            <Meta
-                              title={product.title}
-                              description={`${product.price}р`}
-                            />
-                          </Card>
-                      </Col>
-                    ))}
+                {products &&
+                  products.map((product) => (
+                    <Col xs={24} sm={24} md={12} xl={6} xxl={6}>
+                      <Card
+                        loading={status=='fulfilled'?false:true}
+                        key={product.id}
+                        hoverable
+                        cover={<img alt="example" src={product.imageUrl} />}
+                      >
+                        <Meta
+                          title={product.title}
+                          description={`${product.price}р`}
+                        />
+                      </Card>
+                    </Col>
+                  ))}
               </Row>
               {!isLoading && (
                 <Pagination
@@ -137,7 +166,7 @@ const App = () => {
                   onChange={(page) => handlePagination(page)}
                   current={pagination.page}
                   showSizeChanger={false}
-                  total={128}
+                  total={filtredArray?.total}
                 />
               )}
             </div>
