@@ -9,7 +9,7 @@ import {
   Pagination,
   Spin,
   Grid,
-  Select,
+  Slider,
   Input,
 } from "antd";
 import {
@@ -22,34 +22,46 @@ import {
   UploadOutlined,
   VideoCameraOutlined,
   ShoppingCartOutlined,
+  FilterOutlined,
 } from "@ant-design/icons";
-import { CSSTransition, TransitionGroup } from "react-transition-group";
 import "./App.css";
-import { ChangeEvent, useState } from "react";
-import { IProduct } from "./models/Product";
-import { useFiltredArray } from "./hooks/filtredArray";
+import { InputHTMLAttributes, useState } from "react";
+import { useProducts } from "./hooks/useProducts";
+import { useDebounce } from "./hooks/useDebonce";
+import DrawerWrapper from "antd/lib/drawer";
+import Text from "antd/lib/typography/Text";
 
 const { Header, Content, Sider } = Layout;
 const { Meta } = Card;
 const { useBreakpoint } = Grid;
 
+interface IParameters {
+  like?: string;
+  gte?: number;
+  lte?: number;
+}
+
 const App = () => {
   const [pagination, setPagination] = useState({ limit: 8, page: 1 });
+  const [visibleDrawer, setVisibleDrawer] = useState(false);
+  const [query, setQuery] = useState<IParameters>({
+    gte: undefined,
+    like: undefined,
+    lte: undefined,
+  });
   const screens = useBreakpoint();
-  const {
-    data,
-    isLoading,
-    error,
-    status
-  } = productAPI.useFetchAllProductsQuery('');
-
-  const filtredArray = useFiltredArray(data,{limit: 10, page: 1})
-
-  const products = filtredArray?.filtredArray
+  const { data, isLoading, error, status, isFetching } =
+    productAPI.useFetchAllProductsQuery(query);
+  const debounceSearch = useDebounce(setQuery, 500);
 
   const handlePagination = (newPage: number) => {
     setPagination({ ...pagination, page: newPage });
   };
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    debounceSearch({ ...query, like: e.target.value });
+  };
+
+  const products = useProducts(data, pagination.limit, pagination.page);
 
   return (
     <div>
@@ -101,31 +113,33 @@ const App = () => {
               padding: 5,
               display: "flex",
               justifyContent: "space-between",
-              alignItems: "center"
+              alignItems: "center",
+              cursor: "pointer",
             }}
           >
-            {/* <Select
-              mode="multiple"
-              placeholder="Inserted are removed"
-              // value={selectedItems}
-              // onChange={searchShoeses()}
+            <Input
+              placeholder="input search text"
+              allowClear
+              onChange={handleSearch}
               style={{ width: screens.xl ? "90%" : "70%", marginLeft: 16 }}
+            />
+            <div
+              style={{
+                marginRight: 16,
+                justifyContent: "space-between",
+                display: "flex",
+                alignItems: "center",
+                cursor: "pointer",
+              }}
             >
-              {
-                [...new Set<IProduct[]>(products)].map(item=>(
-                  <Select.Option key={item.}>
-
-                  </Select.Option>
-                ))
-              }
-              {/* {filteredOptions.map(item => (
-                <Select.Option key={item} value={item}>
-                  {item}
-                </Select.Option>
-              ))}
-            </Select> */}
-            <Input style={{ width: screens.xl ? "90%" : "70%", marginLeft: 16 }}/>
-            <div style={{marginRight: 16, display: "flex", alignItems: "center"}}>
+              <FilterOutlined
+                onClick={() => setVisibleDrawer(true)}
+                style={{
+                  fontSize: "30px",
+                  color: "#08c",
+                  marginRight: screens.xl ? 16 : 0,
+                }}
+              />
               <Badge count={99}>
                 <ShoppingCartOutlined
                   style={{ fontSize: "30px", color: "#08c" }}
@@ -138,14 +152,22 @@ const App = () => {
               className="site-layout-background"
               style={{ padding: 24, textAlign: "center" }}
             >
-              {isLoading && <Spin />}
+              {isLoading || (isFetching && <Spin />)}
               {error && <h1>Ошибка при загрузке товаров</h1>}
+              {products?.length == 0 && <h1>Товары не найдены</h1>}
               <Row gutter={[16, 16]}>
                 {products &&
                   products.map((product) => (
-                    <Col xs={24} sm={24} md={12} xl={6} xxl={6}>
+                    <Col
+                      key={product.id}
+                      xs={24}
+                      sm={24}
+                      md={12}
+                      xl={6}
+                      xxl={6}
+                    >
                       <Card
-                        loading={status=='fulfilled'?false:true}
+                        loading={status == "fulfilled" ? false : true}
                         key={product.id}
                         hoverable
                         cover={<img alt="example" src={product.imageUrl} />}
@@ -158,7 +180,7 @@ const App = () => {
                     </Col>
                   ))}
               </Row>
-              {!isLoading && (
+              {!isLoading && products?.length !== 0 && (
                 <Pagination
                   style={{ marginTop: 16 }}
                   pageSize={pagination.limit}
@@ -166,13 +188,25 @@ const App = () => {
                   onChange={(page) => handlePagination(page)}
                   current={pagination.page}
                   showSizeChanger={false}
-                  total={filtredArray?.total}
+                  total={data?.length}
                 />
               )}
             </div>
           </Content>
         </Layout>
       </Layout>
+      <DrawerWrapper
+        title="Filters"
+        placement="right"
+        onClose={() => setVisibleDrawer(!visibleDrawer)}
+        visible={visibleDrawer}
+        width={screens.xl ? 378 : "100%"}
+      >
+        <Text>Цена: </Text>
+        <Slider range max={99999} step={10} defaultValue={[0, 99999]} />
+        <p>Some contents...</p>
+        <p>Some contents...</p>
+      </DrawerWrapper>
     </div>
   );
 };
