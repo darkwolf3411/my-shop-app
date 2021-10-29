@@ -34,5 +34,10 @@ export const productAPI = createApi({
         },
       }),
     }),
+    searchProucts: build.query<IProduct[], string>({
+      query: () => ({
+        url: "/products"
+      }),
+    }),
   }),
 });
