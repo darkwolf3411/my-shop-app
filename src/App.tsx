@@ -25,13 +25,21 @@ import {
   VideoCameraOutlined,
   ShoppingCartOutlined,
   FilterOutlined,
+  MinusCircleTwoTone,
 } from "@ant-design/icons";
 import "./App.css";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useProducts } from "./hooks/useProducts";
 import DrawerWrapper from "antd/lib/drawer";
 import Text from "antd/lib/typography/Text";
 import { IProduct } from "./models/Product";
+import { useAppDispatch, useAppSelector } from "./hooks/store";
+import {
+  addProduct,
+  deleteProduct,
+  setProducts,
+} from "./store/reducers/ShopingCartSlice";
+import { useLocalStorage } from "./hooks/useLocalStorage";
 
 const { Header, Content, Sider } = Layout;
 const { Option } = Select;
@@ -47,9 +55,19 @@ interface IParameters {
 
 const App = () => {
   const screens = useBreakpoint();
+  const dispatch = useAppDispatch();
   const [pagination, setPagination] = useState({ limit: 16, page: 1 });
   const [searchValue, setSearch] = useState("");
   const [visibleDrawer, setVisibleDrawer] = useState(false);
+  const {
+    count: shopingCartCount,
+    similarCount,
+    products: shopingCartProducts,
+  } = useAppSelector((store) => store.shopingCartReducer);
+  const [localValue, setLocalValue] = useLocalStorage<string>(
+    "shopingCart",
+    ""
+  );
   const [query, setQuery] = useState<IParameters>({
     gte: undefined,
     like: undefined,
@@ -88,26 +106,26 @@ const App = () => {
       });
     }, [text]);
     return getSearchValue;
-  };  
+  };
 
-  const setCardResponseSize =()=>{
+  const setCardResponseSize = () => {
     switch (true) {
       case screens.xxl:
-        return {imgh: 330, cardw: 318}
+        return { imgh: 330, cardw: 318 };
       case screens.xl:
-        return {imgh: 230, cardh: 380, cardw: 234}
+        return { imgh: 230, cardh: 380, cardw: 234 };
       case screens.lg:
-        return {imgh: 380, cardh: 520, cardw: 340}
+        return { imgh: 380, cardh: 520, cardw: 340 };
       case screens.md:
-        return {imgh: 320, cardh: 460, cardw: 312}
+        return { imgh: 320, cardh: 460, cardw: 312 };
       case screens.sm:
-        return {imgh: 320, card: 460, cardw: 312}
+        return { imgh: 320, card: 460, cardw: 312 };
       case screens.xs:
-        return {imgh: 260, cardh: 400, cardw: 312}
+        return { imgh: 260, cardh: 400, cardw: 312 };
       default:
         break;
     }
-  }
+  };
 
   const searchResult = useSearch(searchData, searchValue);
 
@@ -125,6 +143,17 @@ const App = () => {
     });
   };
 
+  const handleBuyButton = (item: IProduct) => {
+    dispatch(addProduct(item));
+    setLocalValue(JSON.stringify(shopingCartProducts));
+  };
+  const handleDeleteItem = (item: IProduct) => {
+    dispatch(deleteProduct(item));
+    setLocalValue(JSON.stringify(shopingCartProducts));
+  };
+  useEffect(() => {
+    dispatch(setProducts(JSON.parse(localValue)));
+  }, []);
   return (
     <div>
       <Layout className="site-layout">
@@ -138,8 +167,15 @@ const App = () => {
             cursor: "pointer",
           }}
         >
-          <div style={{ minWidth: screens.xl ? 200 : 80, display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
-          <Title level={2}>{screens.xl ? 'MyShop' : 'MS'}</Title>
+          <div
+            style={{
+              minWidth: screens.xl ? 200 : 80,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Title level={2}>{screens.xl ? "MyShop" : "MS"}</Title>
           </div>
           <Select
             showSearch
@@ -147,14 +183,14 @@ const App = () => {
             loading={searchFetching}
             value={searchValue}
             placeholder="input search text"
-            style={{ width: screens.xl ? "90%" : "70%", marginRight: 16}}
+            style={{ width: screens.xl ? "90%" : "70%", marginRight: 16 }}
             defaultActiveFirstOption={false}
             showArrow={false}
             notFoundContent={null}
             filterOption={false}
             onSearch={(e) => setSearch(e)}
             onChange={handleChange}
-            onFocus={()=>setSearch('')}
+            onFocus={() => setSearch("")}
             onClear={handleClearSearch}
           >
             {searchError && (
@@ -191,15 +227,14 @@ const App = () => {
                 marginRight: screens.xl ? 16 : 0,
               }}
             />
-            <Badge count={99}>
+            <Badge count={shopingCartCount}>
               <ShoppingCartOutlined
                 style={{ fontSize: "30px", color: "#08c" }}
               />
             </Badge>
           </div>
         </Header>
-        <Layout
-        >
+        <Layout>
           <Sider
             collapsed={screens.xl ? false : true}
             style={{
@@ -250,7 +285,11 @@ const App = () => {
                 {products &&
                   products.map((product) => (
                     <Col
-                      style={{ display: 'flex', justifyContent: 'center', alignItems: 'center'}}
+                      style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
                       key={product.id}
                       xs={24}
                       sm={24}
@@ -259,10 +298,11 @@ const App = () => {
                       xxl={6}
                     >
                       <Card
-                        style={{ 
+                        style={{
                           width: setCardResponseSize()?.cardw,
-                          height: setCardResponseSize()?.cardh }}
-                        loading={isFetching? true : false}
+                          height: setCardResponseSize()?.cardh,
+                        }}
+                        loading={isFetching ? true : false}
                         key={product.id}
                         hoverable
                         cover={
@@ -285,9 +325,31 @@ const App = () => {
                               }}
                             >
                               {`${product.price}р`}
-                              <Button style={{ marginTop: 16 }} type="primary">
-                                Купить
-                              </Button>
+                              <div
+                                style={{
+                                  marginTop: 10,
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <Badge count={similarCount[product.id] || 0}>
+                                  <Button
+                                    onClick={() => handleBuyButton(product)}
+                                    type="primary"
+                                  >
+                                    Купить
+                                  </Button>
+                                </Badge>
+                                {similarCount[product.id] && (
+                                  <Button
+                                    onClick={() => handleDeleteItem(product)}
+                                    style={{ marginLeft: 16 }}
+                                  >
+                                    Удалить
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           }
                         />

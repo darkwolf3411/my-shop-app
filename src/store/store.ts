@@ -1,7 +1,9 @@
 import { productAPI } from './../services/ProductServices';
+import shopingCartReducer from './reducers/ShopingCartSlice'
 import {combineReducers, configureStore, getDefaultMiddleware} from '@reduxjs/toolkit'
 
 const rootReducer = combineReducers({
+  shopingCartReducer,
   [productAPI.reducerPath]: productAPI.reducer
 })
 
